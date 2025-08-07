@@ -1,0 +1,319 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AnimeFlix Admin Panel</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #f9f9f9;
+      --text: #111;
+      --card: #fff;
+      --accent: #ffcc00;
+    }
+    body.dark {
+      --bg: #121212;
+      --text: #eee;
+      --card: #1e1e1e;
+    }
+    body {
+      margin: 0;
+      font-family: 'Poppins', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      transition: 0.3s;
+      min-height: 100vh;
+      padding: 20px;
+    }
+    h1 {
+      color: var(--accent);
+      text-align: center;
+      margin-bottom: 20px;
+    }
+    .toggle-theme {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      cursor: pointer;
+      font-size: 1.5rem;
+      color: var(--text);
+    }
+    .container {
+      max-width: 900px;
+      margin: auto;
+    }
+    form {
+      background: var(--card);
+      padding: 20px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-bottom: 30px;
+    }
+    label {
+      display: block;
+      margin-top: 15px;
+      font-weight: 600;
+    }
+    input[type="text"], textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin-top: 6px;
+      border-radius: 6px;
+      border: 1px solid #ccc;
+      font-size: 1rem;
+      background: var(--bg);
+      color: var(--text);
+      resize: vertical;
+    }
+    textarea { min-height: 100px; }
+    button {
+      margin-top: 20px;
+      background: var(--accent);
+      color: #111;
+      border: none;
+      padding: 12px 20px;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #e6b800; }
+    #message {
+      margin-top: 15px;
+      font-weight: 600;
+      text-align: center;
+    }
+    .blog-list {
+      background: var(--card);
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+    }
+    .blog-item {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 10px;
+      border-bottom: 1px solid #ddd;
+    }
+    .blog-item:last-child { border-bottom: none; }
+    .blog-info {
+      flex: 1;
+      overflow: hidden;
+    }
+    .blog-info h3 {
+      margin: 0 0 5px 0;
+      font-size: 1.1rem;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .blog-info p {
+      margin: 0;
+      font-size: 0.9rem;
+      color: gray;
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    
+    .loader-ring {
+  border: 6px solid #f3f3f3; /* light grey */
+  border-top: 6px solid red; /* red ring top */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 50px auto;
+  display: none; /* hidden by default */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+    .blog-actions button {
+      background: transparent;
+      border: none;
+      font-size: 1.1rem;
+      cursor: pointer;
+      margin-left: 10px;
+      color: var(--accent);
+    }
+    .blog-actions button:hover { color: #e6b800; }
+  </style>
+</head>
+<body>
+  <div class="toggle-theme" onclick="document.body.classList.toggle('dark')">
+    <i class="fas fa-moon"></i>
+  </div>
+
+  <div class="container">
+    <h1>AnimeFlix Admin Panel</h1>
+
+    <form id="blogForm" style="display:none;">
+      <input type="hidden" id="blogId" />
+      <label>Title *</label>
+      <input type="text" id="title" required placeholder="Blog title" />
+
+      <label>Intro *</label>
+      <textarea id="intro" required placeholder="Short summary"></textarea>
+
+      <label>Full Content *</label>
+      <textarea id="full" required placeholder="Full blog content"></textarea>
+
+      <label>Banner Image URL *</label>
+      <input type="text" id="banner" required placeholder="https://..." />
+
+      <label>Tag *</label>
+      <select id="tag" required>
+        <option value="" disabled selected>Select tag</option>
+        <option value="Sad">Sad</option>
+        <option value="Love">Love</option>
+        <option value="Action">Action</option>
+        <option value="Comedy">Comedy</option>
+        <option value="Adventure">Adventure</option>
+        <option value="Fantasy">Fantasy</option>
+      </select>
+
+      <label>Date *</label>
+      <input type="text" id="date" required placeholder="DD-MM-YYYY" />
+
+      <button type="submit">Add / Update Blog</button>
+      <div id="message"></div>
+    </form>
+
+    <div class="blog-list" id="blogList" style="display:none;"></div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, collection, getDocs, addDoc,
+      doc, updateDoc, deleteDoc, getDoc
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import {
+      getAuth, onAuthStateChanged
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsSEaxwAsWigHfs9FHhtmJlntU-MeSIOs",
+      authDomain: "animeblog-87e80.firebaseapp.com",
+      projectId: "animeblog-87e80",
+      storageBucket: "animeblog-87e80.appspot.com",
+      messagingSenderId: "353731840842",
+      appId: "1:353731840842:web:c684581140433d2ebc4fb3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+
+    const form = document.getElementById("blogForm");
+    const blogList = document.getElementById("blogList");
+    const message = document.getElementById("message");
+
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) return (location.href = "login.html");
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists() || userDoc.data().isAdmin !== true) {
+        alert("Access denied. Only admin allowed.");
+        return (location.href = "index.html");
+      }
+      form.style.display = "block";
+      blogList.style.display = "block";
+      loadBlogs();
+    });
+
+    async function loadBlogs() {
+      blogList.innerHTML = "";
+      const snap = await getDocs(collection(db, "blogs"));
+      snap.forEach(docSnap => {
+        const blog = { id: docSnap.id, ...docSnap.data() };
+        const div = document.createElement("div");
+        div.className = "blog-item";
+        div.innerHTML = `
+          <div class="blog-info">
+            <h3>${blog.title}</h3>
+            <p>${blog.intro}</p>
+          </div>
+          <div class="blog-actions">
+            <button onclick="editBlog('${blog.id}')"><i class="fas fa-edit"></i></button>
+            <button onclick="deleteBlog('${blog.id}')"><i class="fas fa-trash"></i></button>
+          </div>
+        `;
+        blogList.appendChild(div);
+      });
+    }
+
+    window.editBlog = async (id) => {
+      const snap = await getDoc(doc(db, "blogs", id));
+      if (!snap.exists()) return;
+      const data = snap.data();
+      document.getElementById("blogId").value = id;
+      document.getElementById("title").value = data.title || "";
+      document.getElementById("intro").value = data.intro || "";
+      document.getElementById("full").value = data.full || "";
+      document.getElementById("banner").value = data.banner || "";
+      document.getElementById("tag").value = data.tag || "";
+      document.getElementById("date").value = data.date || "";
+      window.scrollTo({ top: 0, behavior: "smooth" });
+    };
+
+    window.deleteBlog = async (id) => {
+      if (confirm("Delete this blog?")) {
+        await deleteDoc(doc(db, "blogs", id));
+        showMsg("Blog deleted!", "green");
+        loadBlogs();
+      }
+    };
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+      const blogId = document.getElementById("blogId").value.trim();
+      const title = document.getElementById("title").value.trim();
+      const intro = document.getElementById("intro").value.trim();
+      const full = document.getElementById("full").value.trim();
+      const banner = document.getElementById("banner").value.trim();
+      const tag = document.getElementById("tag").value;
+      const date = document.getElementById("date").value.trim();
+      if (!title || !intro || !full || !banner || !tag || !date) {
+        return showMsg("Please fill all fields!", "red");
+      }
+      try {
+        if (blogId) {
+          await updateDoc(doc(db, "blogs", blogId), { title, intro, full, banner, tag, date });
+          showMsg("Blog updated successfully!", "green");
+        } else {
+          await addDoc(collection(db, "blogs"), { title, intro, full, banner, tag, date, likes: 0, commentList: [] });
+          showMsg("Blog added!", "green");
+        }
+        form.reset();
+        document.getElementById("blogId").value = "";
+        loadBlogs();
+      } catch (e) {
+        showMsg("Error: " + e.message, "red");
+      }
+    });
+
+    function showMsg(msg, color) {
+      message.innerText = msg;
+      message.style.color = color;
+      setTimeout(() => (message.innerText = ""), 4000);
+    }
+
+    // Show loader
+document.getElementById("loader").style.display = "block";
+
+// Simulate data loading (like Firebase fetching)
+setTimeout(() => {
+  document.getElementById("loader").style.display = "none";
+  // Yahan tumhara content display hoga
+}, 3000); // 3 sec delay just for demo
+
+  </script>
+  <div id="loader" class="loader-ring"></div>
+</body>
+</html>

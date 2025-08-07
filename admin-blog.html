@@ -1,0 +1,234 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Admin Blog Upload | AnimeFlix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;500;700&display=swap" rel="stylesheet">
+  <style>
+    body {
+      font-family: 'Poppins', sans-serif;
+      background: #f0f0f0;
+      margin: 0;
+      padding: 30px 10px;
+      display: flex;
+      justify-content: center;
+    }
+    .container {
+      background: #fff;
+      border-radius: 10px;
+      padding: 20px;
+      width: 100%;
+      max-width: 650px;
+      box-shadow: 0 4px 12px rgba(0, 0, 0, 0.1);
+    }
+    h2 {
+      text-align: center;
+      color: #ffcc00;
+    }
+    input, textarea, select {
+      width: 100%;
+      padding: 10px;
+      margin: 10px 0;
+      border: 1px solid #ccc;
+      border-radius: 6px;
+      font-size: 1rem;
+    }
+    textarea { min-height: 150px; }
+    button {
+      width: 100%;
+      background: #ffcc00;
+      padding: 12px;
+      border: none;
+      font-size: 1.1rem;
+      font-weight: bold;
+      border-radius: 6px;
+      cursor: pointer;
+    }
+    button:hover { background: #e6b800; }
+    #previewImg {
+      max-width: 100%;
+      margin-top: 10px;
+      display: none;
+    }
+    #progressBar {
+      width: 100%;
+      background: #ddd;
+      border-radius: 6px;
+      margin-top: 10px;
+    }
+    #progress {
+      height: 8px;
+      width: 0;
+      background: #ffcc00;
+      border-radius: 6px;
+    }
+    #message {
+      text-align: center;
+      margin-top: 15px;
+      font-weight: bold;
+    }
+
+    
+    .loader-ring {
+  border: 6px solid #f3f3f3; /* light grey */
+  border-top: 6px solid red; /* red ring top */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 50px auto;
+  display: none; /* hidden by default */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+  </style>
+</head>
+<body>
+  <div class="container">
+    <h2>Upload New Blog (Admin Only)</h2>
+    <form id="blogForm">
+      <input type="text" id="blogId" placeholder="Blog ID (e.g. naruto-sad-1)" required />
+      <input type="text" id="title" placeholder="Blog Title" required />
+      <input type="text" id="intro" placeholder="Intro (Max 100 chars)" required />
+      <textarea id="full" placeholder="Full Blog Content" required></textarea>
+      <select id="tag" required>
+        <option value="">Select Tag</option>
+        <option value="Sad">Sad</option>
+        <option value="Love">Love</option>
+        <option value="Action">Action</option>
+        <option value="Comedy">Comedy</option>
+        <option value="Adventure">Adventure</option>
+      </select>
+      <input type="file" id="bannerFile" accept="image/*" required />
+      <img id="previewImg" />
+      <div id="progressBar"><div id="progress"></div></div>
+      <button type="submit">Upload Blog</button>
+      <div id="message"></div>
+    </form>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getStorage, ref, uploadBytesResumable, getDownloadURL } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-storage.js";
+    import { getAuth, onAuthStateChanged, signOut } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsSEaxwAsWigHfs9FHhtmJlntU-MeSIOs",
+      authDomain: "animeblog-87e80.firebaseapp.com",
+      projectId: "animeblog-87e80",
+      storageBucket: "animeblog-87e80.appspot.com",
+      messagingSenderId: "353731840842",
+      appId: "1:353731840842:web:c684581140433d2ebc4fb3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const storage = getStorage(app);
+    const auth = getAuth();
+
+    const form = document.getElementById("blogForm");
+    const bannerInput = document.getElementById("bannerFile");
+    const previewImg = document.getElementById("previewImg");
+    const progress = document.getElementById("progress");
+    const message = document.getElementById("message");
+
+    function sanitize(str) {
+      return str.replace(/[<>&'"]/g, c => ({
+        '<': '&lt;', '>': '&gt;', '&': '&amp;', "'": '&#39;', '"': '&quot;'
+      }[c]));
+    }
+
+    // Admin-only protection
+    onAuthStateChanged(auth, async (user) => {
+      if (!user) {
+        alert("Please login first.");
+        location.href = "login.html";
+        return;
+      }
+      const userDoc = await getDoc(doc(db, "users", user.uid));
+      if (!userDoc.exists() || !userDoc.data().isAdmin) {
+        alert("Access denied: Only admin can upload.");
+        await signOut(auth);
+        location.href = "login.html";
+      }
+    });
+
+    bannerInput.addEventListener("change", () => {
+      const file = bannerInput.files[0];
+      if (file) {
+        previewImg.src = URL.createObjectURL(file);
+        previewImg.style.display = "block";
+      }
+    });
+
+    form.addEventListener("submit", async (e) => {
+      e.preventDefault();
+
+      const blogId = document.getElementById("blogId").value.trim();
+      const safeBlogId = blogId.replace(/[^a-zA-Z0-9-_]/g, "_");
+      const title = sanitize(document.getElementById("title").value.trim());
+      const intro = sanitize(document.getElementById("intro").value.trim());
+      const full = sanitize(document.getElementById("full").value.trim());
+      const tag = document.getElementById("tag").value;
+      const file = bannerInput.files[0];
+
+      if (!file || !title || !intro || !full || !tag || !safeBlogId) {
+        message.style.color = "red";
+        message.innerText = "Please fill all fields.";
+        return;
+      }
+
+      // Prevent duplicate ID
+      const blogDoc = await getDoc(doc(db, "blogs", safeBlogId));
+      if (blogDoc.exists()) {
+        message.style.color = "red";
+        message.innerText = "⚠ Blog ID already exists!";
+        return;
+      }
+
+      const fileRef = ref(storage, `blog-banners/${safeBlogId}.jpg`);
+      const uploadTask = uploadBytesResumable(fileRef, file);
+
+      uploadTask.on('state_changed', (snap) => {
+        const percent = (snap.bytesTransferred / snap.totalBytes) * 100;
+        progress.style.width = percent + "%";
+      }, (error) => {
+        message.style.color = "red";
+        message.innerText = "Upload failed: " + error.message;
+      }, async () => {
+        const bannerUrl = await getDownloadURL(fileRef);
+        await setDoc(doc(db, "blogs", safeBlogId), {
+          title, intro, full, tag,
+          banner: bannerUrl,
+          date: new Date().toISOString(),
+          likes: 0,
+          views: 0,
+          commentList: []
+        });
+        message.style.color = "green";
+        message.innerText = "✅ Blog uploaded successfully!";
+        form.reset();
+        previewImg.style.display = "none";
+        progress.style.width = "0";
+      });
+    });
+
+    // Show loader
+document.getElementById("loader").style.display = "block";
+
+// Simulate data loading (like Firebase fetching)
+setTimeout(() => {
+  document.getElementById("loader").style.display = "none";
+  // Yahan tumhara content display hoga
+}, 3000); // 3 sec delay just for demo
+
+  </script>
+  <div id="loader" class="loader-ring"></div>
+</body>
+</html>

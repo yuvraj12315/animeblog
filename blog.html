@@ -1,0 +1,346 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Loading... - AnimeFlix Blog</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --bg: #fff;
+      --text: #111;
+      --card: #f9f9f9;
+      --accent: #ffcc00;
+    }
+    body.dark {
+      --bg: #111;
+      --text: #eee;
+      --card: #1f1f1f;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      transition: 0.3s;
+    }
+    .container {
+      max-width: 800px;
+      margin: auto;
+      padding: 20px;
+    }
+    .banner {
+      width: 100%;
+      height: 300px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+    h1 { color: var(--accent); }
+    .content { margin-top: 20px; line-height: 1.7;}
+    .actions {
+      display: flex;
+      justify-content: flex-start;
+      margin-top: 20px;
+      gap: 15px;
+    }
+    .like-btn {
+      background: #ca180b;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      font-size: 1rem;
+    }
+
+     .comment-btn {
+      background: #111;
+      border: none;
+      padding: 10px 20px;
+      cursor: pointer;
+      font-weight: bold;
+      border-radius: 5px;
+      display: flex;
+      align-items: center;
+      font-size: 10px;
+    }
+
+    .like-btn:disabled {
+      opacity: 0.6;
+      cursor: not-allowed;
+    }
+    .comments {
+      margin-top: 20px;
+    }
+    .comments textarea {
+      width: 100%;
+      padding: 10px;
+      border-radius: 5px;
+      font-family: Arial, sans-serif;
+      font-size: 1.5rem;
+      resize: vertical;
+      height: 40px;
+    }
+    .comments button {
+      margin-top: 10px;
+      padding: 12px;
+      background: #fff;
+      color: #111;
+      border: none;
+      cursor: pointer;
+      border-radius: 5px;
+      font-weight: bold;
+      font-size: 20px;
+    }
+
+     .comments button {
+      background: #fff;
+      color: #111;
+       }
+         #postCommentBtn:disabled {
+      background: #111;
+      cursor: not-allowed;
+    }
+    .comment-list {
+      margin-top: 20px;
+      max-height: 300px;
+      overflow-y: auto;
+      border-top: 1px solid #ccc;
+      padding-top: 10px;
+    }
+    .comment-item {
+      padding: 10px;
+      background: var(--card);
+      margin-bottom: 10px;
+      border-radius: 5px;
+      word-wrap: break-word;
+      white-space: pre-wrap;
+    }
+     .toggle-theme {
+      position: fixed;
+      margin-top: 20px;
+      right: 30px;
+      cursor: pointer;
+      padding: 1rem;
+      font-size: 30px;
+      color: var(--text);
+      background: var(--card);
+      border-radius: 50%;
+      margin-bottom: 15px;
+     }
+
+    body.dark .theme-toggle {
+      color: var(--text-dark);
+    }
+      .back-btn {
+      cursor: pointer;
+      position: fixed;
+      margin-top: 10px;
+      display: inline-block;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding: 2rem;
+      font-size: 40px;
+    }
+    
+    .loader-ring {
+  border: 6px solid #f3f3f3; /* light grey */
+  border-top: 6px solid red; /* red ring top */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 50px auto;
+  display: none; /* hidden by default */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+  </style>
+</head>
+<body>
+ <nav>
+  <header>
+      <a class="back-btn" href="blog-list.html">
+  <i class="fas fa-arrow-left"></i>
+</a>
+      <div class="toggle-theme">
+   <i id="" class="fas fa-moon theme-toggle" title="Toggle Dark/Light Theme" role="button" tabindex="0" aria-pressed="false"></i>
+   </div>
+  </header>
+  <div class="container" id="blogDetail">
+    <p>Loading blog...</p>
+  </div>
+   
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import {
+      getFirestore, doc, getDoc, updateDoc,
+      collection, addDoc, query, orderBy, onSnapshot
+    } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsSEaxwAsWigHfs9FHhtmJlntU-MeSIOs",
+      authDomain: "animeblog-87e80.firebaseapp.com",
+      projectId: "animeblog-87e80",
+      storageBucket: "animeblog-87e80.appspot.com",
+      messagingSenderId: "353731840842",
+      appId: "1:353731840842:web:c684581140433d2ebc4fb3"
+    };
+   
+    // DOM Elements
+     const themeToggleBtn = document.getElementById("themeToggleBtn");
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const blogId = new URLSearchParams(location.search).get("id");
+
+    function escapeHTML(str = "") {
+      return str.replace(/[&<>"']/g, m => ({
+        '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;'
+      })[m]);
+    }
+
+    async function loadBlog() {
+      const el = document.getElementById("blogDetail");
+      if (!blogId) {
+        el.innerHTML = "<p>⚠ Blog ID not found in URL</p>";
+        return;
+      }
+
+      const blogDoc = await getDoc(doc(db, "blogs", blogId));
+      if (!blogDoc.exists()) {
+        el.innerHTML = "<p>⚠ Blog not found</p>";
+        return;
+      }
+
+      const data = blogDoc.data();
+      document.title = data.title + " - AnimeFlix Blog";
+
+      el.innerHTML = `
+        <img class="banner" src="${escapeHTML(data.banner || 'default.jpg')}" alt="Blog Banner"/>
+        <h1>${escapeHTML(data.title)}</h1>
+        <p><b>Tag:</b> ${escapeHTML(data.tag || "General")} | <b>Date:</b> ${escapeHTML(data.date || "Unknown")}</p>
+        <div class="content" id="fullContent"></div>
+
+        <div class="actions">
+          <button class="like-btn" id="likeBtn"><i class="fas fa-heart"></i> Like (<span id="likeCount">${data.likes || 0}</span>)</button>
+        </div>
+
+        <div class="comments">
+          <h4>Comments</h4>
+          <textarea id="commentText" placeholder="Write a comment..."></textarea>
+          <button id="postBtn" class="comment-btn">Post</button>
+          <div class="comment-list" id="commentList">
+            <p>Loading comments</di>
+          </div>
+        </div>
+      `;
+     document.getElementById("fullContent").innerHTML = data.full || data.intro;
+      // Like button logic
+      const likeBtn = document.getElementById("likeBtn");
+      const likeCountSpan = document.getElementById("likeCount");
+      likeBtn.onclick = async () => {
+        likeBtn.disabled = true;
+        const blogRef = doc(db, "blogs", blogId);
+        const blogSnap = await getDoc(blogRef);
+        const currentLikes = blogSnap.data()?.likes || 0;
+        await updateDoc(blogRef, { likes: currentLikes + 1 });
+        likeCountSpan.textContent = currentLikes + 1;
+        likeBtn.disabled = false;
+      };
+
+      // Comments logic
+      const commentList = document.getElementById("commentList");
+      const commentText = document.getElementById("commentText");
+      const postBtn = document.getElementById("postBtn");
+
+      const commentsCol = collection(db, "blogs", blogId, "comments");
+      const commentsQuery = query(commentsCol, orderBy("time", "desc"));
+
+      // Listen for realtime comments update
+      onSnapshot(commentsQuery, (snapshot) => {
+        if (snapshot.empty) {
+          commentList.innerHTML = "<p>No comments yet. Be the first!</p>";
+          return;
+        }
+        commentList.innerHTML = "";
+        snapshot.forEach(doc => {
+          const commentData = doc.data();
+          const div = document.createElement("div");
+          div.className = "comment-item";
+          div.textContent = commentData.text;
+          commentList.appendChild(div);
+        });
+      });
+
+              // Theme toggle
+     function toggleTheme() {
+      const icon = document.querySelector(".theme-toggle");
+      const isDark = document.body.classList.toggle("dark");
+      icon.classList.toggle("fa-sun", isDark);
+      icon.classList.toggle("fa-moon", !isDark);
+      localStorage.setItem("darkTheme", isDark);
+    }
+
+    function loadTheme() {
+      const saved = localStorage.getItem("darkTheme");
+      if (saved === "true") {
+        document.body.classList.add("dark");
+        document.querySelector(".theme-toggle").classList.replace("fa-moon", "fa-sun");
+      }
+    }
+
+    document.querySelector(".theme-toggle").addEventListener("click", toggleTheme);
+    loadTheme();
+    loadBlog();
+
+
+      // Add new comment
+      postBtn.onclick = async () => {
+        const text = commentText.value.trim();
+        if (!text) {
+          alert("Comment cannot be empty!");
+          return;
+        }
+        postBtn.disabled = true;
+        await addDoc(commentsCol, {
+          text,
+          time: new Date()
+        });
+        commentText.value = "";
+        postBtn.disabled = false;
+      };
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+    }
+
+    loadBlog();
+    
+    // Show loader
+document.getElementById("loader").style.display = "block";
+
+// Simulate data loading (like Firebase fetching)
+setTimeout(() => {
+  document.getElementById("loader").style.display = "none";
+  // Yahan tumhara content display hoga
+}, 3000); // 3 sec delay just for demo
+
+  </script>
+    
+    <!-- ✅ Firebase + Modal Script (Just before closing body tag) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="modal.js"></script>
+  <div id="loader" class="loader-ring"></div>
+</body>
+</html>

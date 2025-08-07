@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>AnimeFlix Blog List</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #fff;
+      --text: #111;
+      --card: #f9f9f9;
+      --accent: #ffcc00;
+    }
+    body.dark {
+      --bg: #111;
+      --text: #eee;
+      --card: #1f1f1f;
+    }
+    body {
+      margin: 0;
+      background: var(--bg);
+      color: var(--text);
+      font-family: Arial, sans-serif;
+      transition: 0.3s;
+    }
+    .container {
+      max-width: 1000px;
+      margin: auto;
+      padding: 20px;
+    }
+    .blog-card {
+      background: var(--card);
+      margin-bottom: 20px;
+      padding: 15px;
+      border-radius: 10px;
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+    .blog-card img {
+      width: 200px;
+      height: 130px;
+      object-fit: cover;
+      border-radius: 10px;
+    }
+    .blog-content {
+      flex: 1;
+      min-width: 250px;
+    }
+    .blog-content h2 {
+      margin: 0;
+      color: var(--accent);
+    }
+    .blog-content p {
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+    .blog-content a {
+      border: none;
+      text-decoration: none;
+      background: #007bff;
+      color: #fff;
+      padding:  0.6rem;
+      border-radius: 9px;
+      font-weight: bold;
+         cursor: pointer;
+      font-weight: bold;
+      transition: background 0.3s;
+      width: 35%
+    }
+    
+      .blog-content a:hover {
+      background: #0056b3;
+    }
+    
+    .title-heading {
+      text-align: center;
+      margin-bottom: 30px;
+      color: var(--accent);
+    }
+    .toggle-theme {
+      position: fixed;
+      margin-top: 20px;
+      right: 30px;
+      cursor: pointer;
+      padding: 1rem;
+      font-size: 30px;
+      color: var(--text);
+      background: var(--card);
+      border-radius: 50%;
+      margin-bottom: 15px;
+     }
+
+    body.dark .theme-toggle {
+      color: var(--text-dark);
+    }
+      .back-btn {
+      cursor: pointer;
+      position: fixed;
+      margin-top: 10px;
+      display: inline-block;
+      text-decoration: none;
+      color: var(--text);
+      font-weight: bold;
+      margin-bottom: 15px;
+      padding: 2rem;
+      font-size: 40px;
+    }
+
+    
+    .loader-ring {
+  border: 6px solid #f3f3f3; /* light grey */
+  border-top: 6px solid red; /* red ring top */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 50px auto;
+  display: none; /* hidden by default */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+  </style>
+</head>
+<body>
+  <header>
+   <a class="back-btn" href="index.html">
+  <i class="fas fa-arrow-left"></i>
+</a>
+      <div class="toggle-theme">
+   <i id="themeToggleBtn" class="fas fa-moon theme-toggle" title="Toggle Dark/Light Theme" role="button" tabindex="0" aria-pressed="false"></i>
+   </div>
+  </header>
+  <div class="container">
+    <h1 class="title-heading">AnimeFlix Blog List</h1>
+    <div id="blogList">
+      <p>Loading blogs...</p>
+    </div>
+  </div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, collection, getDocs } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsSEaxwAsWigHfs9FHhtmJlntU-MeSIOs",
+      authDomain: "animeblog-87e80.firebaseapp.com",
+      projectId: "animeblog-87e80",
+      storageBucket: "animeblog-87e80.appspot.com",
+      messagingSenderId: "353731840842",
+      appId: "1:353731840842:web:c684581140433d2ebc4fb3"
+    };
+    
+       // DOM Elements
+     const themeToggleBtn = document.getElementById("themeToggleBtn");
+    
+     
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+
+    const blogListDiv = document.getElementById("blogList");
+
+    async function loadBlogs() {
+      const snapshot = await getDocs(collection(db, "blogs"));
+      if (snapshot.empty) {
+        blogListDiv.innerHTML = "<p>No blogs found.</p>";
+        return;
+      }
+     
+        // Theme toggle
+    function loadTheme() {
+      const saved = localStorage.getItem("darkTheme");
+      if (saved === "true") {
+        document.body.classList.add("dark");
+        themeToggleBtn.classList.replace("fa-moon", "fa-sun");
+        themeToggleBtn.setAttribute("aria-pressed", "true");
+      }
+    }
+    function toggleTheme() {
+      const isDark = document.body.classList.toggle("dark");
+      if (isDark) {
+        themeToggleBtn.classList.replace("fa-moon", "fa-sun");
+        themeToggleBtn.setAttribute("aria-pressed", "true");
+        localStorage.setItem("darkTheme", "true");
+      } else {
+        themeToggleBtn.classList.replace("fa-sun", "fa-moon");
+        themeToggleBtn.setAttribute("aria-pressed", "false");
+        localStorage.setItem("darkTheme", "false");
+      }
+    }
+    themeToggleBtn.addEventListener("click", toggleTheme);
+    themeToggleBtn.addEventListener("keydown", e => {
+      if(e.key === "Enter" || e.key === " ") toggleTheme();
+    });
+    loadTheme();
+
+      blogListDiv.innerHTML = "";
+      snapshot.forEach(doc => {
+        const data = doc.data();
+        const id = doc.id;
+
+        blogListDiv.innerHTML += `
+          <div class="blog-card">
+            <img src="${data.banner || 'default.jpg'}" alt="${data.title}" />
+            <div class="blog-content">
+              <h2>${data.title}</h2>
+              <p>${stripHTML(data.intro || 'No description...')}</p>
+              <a href="blog.html?id=${id}">Read More</a>
+            </div>
+          </div>
+        `;
+      });
+    }
+  
+                                          
+    // Remove tags from intro for display in blog list
+    function stripHTML(html) {
+      let div = document.createElement("div");
+      div.innerHTML = html;
+      return div.textContent || div.innerText || "";
+    }
+
+    function toggleTheme() {
+      document.body.classList.toggle("dark");
+    }
+
+    loadBlogs();
+    // Show loader
+document.getElementById("loader").style.display = "block";
+
+// Simulate data loading (like Firebase fetching)
+setTimeout(() => {
+  document.getElementById("loader").style.display = "none";
+  // Yahan tumhara content display hoga
+}, 3000); // 3 sec delay just for demo
+
+  </script>
+    
+    <!-- ✅ Firebase + Modal Script (Just before closing body tag) -->
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.22.2/firebase-database-compat.js"></script>
+  <script src="modal.js"></script>
+  <div id="loader" class="loader-ring"></div>
+</body>
+</html>

@@ -1,0 +1,194 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <title>Bulk Blog Import | AnimeFlix</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      padding: 30px;
+      background: #f5f5f5;
+    }
+    h2 { text-align: center; color: #ffcc00; }
+    #log {
+      background: #fff;
+      padding: 15px;
+      border-radius: 10px;
+      box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+      margin-top: 20px;
+      height: 300px;
+      overflow-y: auto;
+      font-size: 0.9rem;
+    }
+    button, input {
+      padding: 10px;
+      margin: 10px 0;
+      font-size: 1rem;
+    }
+    input[type="file"] {
+      border: 1px solid #ccc;
+      border-radius: 5px;
+    }
+    button {
+      background: #ffcc00;
+      font-weight: bold;
+      cursor: pointer;
+      border: none;
+      border-radius: 5px;
+    }
+    #progressBar {
+      background: #ddd;
+      border-radius: 6px;
+      height: 10px;
+      margin-top: 10px;
+      width: 100%;
+    }
+    #progress {
+      height: 100%;
+      width: 0%;
+      background: #ffcc00;
+      border-radius: 6px;
+      transition: width 0.3s;
+    }
+
+    
+    .loader-ring {
+  border: 6px solid #f3f3f3; /* light grey */
+  border-top: 6px solid red; /* red ring top */
+  border-radius: 50%;
+  width: 30px;
+  height: 30px;
+  animation: spin 1s linear infinite;
+  margin: 50px auto;
+  display: none; /* hidden by default */
+}
+
+@keyframes spin {
+  0% { transform: rotate(0deg); }
+  100% { transform: rotate(360deg); }
+}
+  </style>
+</head>
+<body>
+  <h2>🔥 Bulk Blog Import - AnimeFlix</h2>
+  <input type="file" id="fileInput" accept=".json" />
+  <button id="uploadBtn">Upload Blogs to Firestore</button>
+
+  <div id="progressBar"><div id="progress"></div></div>
+  <div id="log"></div>
+
+  <script type="module">
+    import { initializeApp } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-app.js";
+    import { getFirestore, doc, setDoc, getDoc } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-firestore.js";
+    import { getAuth, onAuthStateChanged } from "https://www.gstatic.com/firebasejs/10.12.0/firebase-auth.js";
+
+    const firebaseConfig = {
+      apiKey: "AIzaSyBsSEaxwAsWigHfs9FHhtmJlntU-MeSIOs",
+      authDomain: "animeblog-87e80.firebaseapp.com",
+      projectId: "animeblog-87e80",
+      storageBucket: "animeblog-87e80.appspot.com",
+      messagingSenderId: "353731840842",
+      appId: "1:353731840842:web:c684581140433d2ebc4fb3"
+    };
+
+    const app = initializeApp(firebaseConfig);
+    const db = getFirestore(app);
+    const auth = getAuth();
+
+    const fileInput = document.getElementById("fileInput");
+    const uploadBtn = document.getElementById("uploadBtn");
+    const progressBar = document.getElementById("progress");
+    const logDiv = document.getElementById("log");
+
+    let isLoggedIn = false;
+    let currentUser = null;
+
+    function log(msg) {
+      logDiv.innerHTML += msg + "<br>";
+      logDiv.scrollTop = logDiv.scrollHeight;
+    }
+
+    function updateProgress(percent) {
+      progressBar.style.width = percent + "%";
+    }
+
+    onAuthStateChanged(auth, async (user) => {
+      if (user) {
+        currentUser = user;
+        log("👤 Logged in as: " + user.email);
+      } else {
+        log("🔒 Please login to use this tool.");
+      }
+    });
+
+    uploadBtn.addEventListener("click", async () => {
+      const file = fileInput.files[0];
+      if (!file) return alert("Please select blogs.json file");
+
+      if (!currentUser) {
+        alert("Please login first.");
+        return;
+      }
+
+      const userDoc = await getDoc(doc(db, "users", currentUser.uid));
+      if (!userDoc.exists() || userDoc.data().isAdmin !== true) {
+        alert("Access Denied. You are not admin.");
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = async function (e) {
+        try {
+          const data = JSON.parse(e.target.result);
+          const keys = Object.keys(data);
+          let success = 0;
+          let failed = 0;
+
+          for (let i = 0; i < keys.length; i++) {
+            const blogId = keys[i];
+            const blogData = data[blogId];
+
+            try {
+              const existing = await getDoc(doc(db, "blogs", blogId));
+              if (existing.exists()) {
+                log(`⚠️ Skipped duplicate: ${blogId}`);
+                failed++;
+              } else {
+                await setDoc(doc(db, "blogs", blogId), {
+                  ...blogData,
+                  likes: blogData.likes || 0,
+                  commentList: blogData.commentList || []
+                });
+                log(`✅ Uploaded: ${blogId}`);
+                success++;
+              }
+            } catch (err) {
+              log(`❌ Failed: ${blogId} → ${err.message}`);
+              failed++;
+            }
+
+            updateProgress(Math.floor((i + 1) / keys.length * 100));
+          }
+
+          log(`<hr>✅ Done. Success: ${success}, Skipped/Failed: ${failed}`);
+        } catch (err) {
+          log("❌ Error: " + err.message);
+        }
+      };
+      reader.readAsText(file);
+    });
+
+    // Show loader
+document.getElementById("loader").style.display = "block";
+
+// Simulate data loading (like Firebase fetching)
+setTimeout(() => {
+  document.getElementById("loader").style.display = "none";
+  // Yahan tumhara content display hoga
+}, 3000); // 3 sec delay just for demo
+
+  </script>
+  <div id="loader" class="loader-ring"></div>
+</body>
+</html>
